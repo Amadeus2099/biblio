@@ -13,6 +13,12 @@ return new class extends Migration
     {
         Schema::create('libros', function (Blueprint $table) {
             $table->id();
+            $table->string('titulo');
+            $table->string('autor');
+            $table->string('editorial');
+            $table->year('año'); 
+            $table->enum('estado', ['disponible', 'prestado', 'deteriorado'])->default('disponible');
+            $table->integer('existencia')->default(1);
             $table->timestamps();
         });
     }
