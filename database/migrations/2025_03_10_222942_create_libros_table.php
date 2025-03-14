@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('autor');
             $table->string('editorial');
             $table->year('año'); 
-            $table->enum('estado', ['disponible', 'prestado', 'deteriorado'])->default('disponible');
+            $table->enum('estado', ['disponible', 'prestado'])->default('disponible');
             $table->integer('existencia')->default(1);
             $table->timestamps();
         });

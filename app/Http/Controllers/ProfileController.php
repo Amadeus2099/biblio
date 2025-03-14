@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,49 +13,60 @@ use Illuminate\View\View;
 class ProfileController extends Controller
 {
     /**
-     * Display the user's profile form.
+     * Mostrar el formulario de edición de perfil.
      */
     public function edit(Request $request): View
     {
-        return view('profile.edit', [
-            'user' => $request->user(),
-        ]);
+        $user = $request->user();
+
+        if (Auth::user()->tipo !== 'admin' && Auth::id() !== $user->id) {
+            abort(403, 'No tienes permiso para acceder a este perfil.');
+        }
+
+        return view('profile.edit', compact('user'));
     }
 
     /**
-     * Update the user's profile information.
+     * Actualizar la información del perfil.
      */
-    public function update(ProfileUpdateRequest $request): RedirectResponse
+    public function update(ProfileUpdateRequest $request, $id = null): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        $user = $id ? User::findOrFail($id) : $request->user();
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        if (Auth::user()->tipo !== 'admin' && Auth::id() !== $user->id) {
+            abort(403, 'No tienes permisos para actualizar este perfil.');
         }
 
-        $request->user()->save();
+        // Validar datos y evitar que usuarios normales cambien su tipo
+        $validatedData = $request->validated();
+        if (Auth::user()->tipo !== 'admin') {
+            unset($validatedData['tipo']); 
+        }
+
+        $user->update($validatedData);
 
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
     }
 
     /**
-     * Delete the user's account.
+     * Eliminar un usuario (solo admin).
      */
-    public function destroy(Request $request): RedirectResponse
+    public function destroy($id)
     {
-        $request->validateWithBag('userDeletion', [
-            'password' => ['required', 'current_password'],
-        ]);
+        if (auth()->user()->tipo !== 'admin') {
+            abort(403, 'No tienes permisos para eliminar usuarios.');
+        }
 
-        $user = $request->user();
+        $usuario = User::find($id);
 
-        Auth::logout();
+        if (!$usuario) {
+            return redirect()->route('usuarios.index')->with('error', 'Usuario no encontrado.');
+        }
 
-        $user->delete();
+        if ($usuario->tipo === 'admin') {
+            return redirect()->route('usuarios.index')->with('error', 'No puedes eliminar otro administrador.');
+        }
 
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return Redirect::to('/');
+       
     }
 }
